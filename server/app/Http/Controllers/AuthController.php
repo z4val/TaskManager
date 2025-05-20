@@ -6,7 +6,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Exception;
+use GuzzleHttp\Psr7\Message;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Exceptions\JWTException;
+use Tymon\JWTAuth\Exceptions\UserNotDefinedException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 use function Pest\Laravel\json;
@@ -57,7 +61,7 @@ class AuthController extends Controller
         ]);
 
         if (!$token = auth('api')->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Unauthorized. Incorrect credentials'], 401);
         }
 
         return $this->respondWithToken($token);
@@ -65,13 +69,21 @@ class AuthController extends Controller
 
     public function me()
     {
-        return response()->json(auth('api')->user());
+        try {
+            return response()->json(auth('api')->user());
+        } catch(\Throwable $th) {
+            return response()->json(['error' => $th->getMessage()], 401);
+        }
     }
 
     public function logout()
     {
-        auth('api')->logout();
-        return response()->json(['message' => 'Successfully logged out']);
+        try {
+            auth('api')->logout();
+            return response()->json(['message' => 'Successfully logged out']);
+        } catch(JWTException $ex) {
+            return response()->json(['error' => 'Logout error'], 401);
+        }
     }
 
     public function refresh()
